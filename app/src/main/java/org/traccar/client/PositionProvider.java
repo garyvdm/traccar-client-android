@@ -25,12 +25,14 @@ import android.os.BatteryManager;
 import android.preference.PreferenceManager;
 import android.util.Log;
 
-import com.mapzen.android.lost.api.LocationListener;
-import com.mapzen.android.lost.api.LocationRequest;
-import com.mapzen.android.lost.api.LocationServices;
-import com.mapzen.android.lost.api.LostApiClient;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationCallback;
 
-public class PositionProvider implements LostApiClient.ConnectionCallbacks, LocationListener {
+
+public class PositionProvider {
 
     private static final String TAG = PositionProvider.class.getSimpleName();
 
@@ -44,7 +46,9 @@ public class PositionProvider implements LostApiClient.ConnectionCallbacks, Loca
 
     private final Context context;
     private SharedPreferences preferences;
-    private LostApiClient apiClient;
+    private FusedLocationProviderClient locationClient;
+    private LocationCallback locationCallback;
+
 
     private String deviceId;
     private long interval;
@@ -55,7 +59,7 @@ public class PositionProvider implements LostApiClient.ConnectionCallbacks, Loca
 
     private boolean started;
 
-    public PositionProvider(Context context, PositionListener listener) {
+    public PositionProvider(final Context context, final PositionListener listener) {
         this.context = context;
         this.listener = listener;
 
@@ -65,12 +69,36 @@ public class PositionProvider implements LostApiClient.ConnectionCallbacks, Loca
         interval = Long.parseLong(preferences.getString(MainFragment.KEY_INTERVAL, "600")) * 1000;
         distance = Integer.parseInt(preferences.getString(MainFragment.KEY_DISTANCE, "0"));
         angle = Integer.parseInt(preferences.getString(MainFragment.KEY_ANGLE, "0"));
+        locationClient = LocationServices.getFusedLocationProviderClient(context);
+
+        locationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
+                Location location = locationResult.getLastLocation();
+                if (location != null && (lastLocation == null
+                        || location.getTime() - lastLocation.getTime() >= interval
+                        || distance > 0 && DistanceCalculator.distance(location.getLatitude(), location.getLongitude(), lastLocation.getLatitude(), lastLocation.getLongitude()) >= distance
+                        || angle > 0 && Math.abs(location.getBearing() - lastLocation.getBearing()) >= angle)) {
+                    Log.i(TAG, "location new");
+                    lastLocation = location;
+                    listener.onPositionUpdate(new Position(deviceId, location, getBatteryLevel(context)));
+                } else {
+                    Log.i(TAG, location != null ? "location ignored" : "location nil");
+                }
+            };
+        };
     }
 
+    @SuppressLint("MissingPermission")
     public void startUpdates() {
-        started = true;
-        apiClient = new LostApiClient.Builder(context).addConnectionCallbacks(this).build();
-        apiClient.connect();
+        if (!started) {
+            LocationRequest request = LocationRequest.create()
+                    .setPriority(getPriority(preferences.getString(MainFragment.KEY_ACCURACY, "medium")))
+                    .setInterval(distance > 0 || angle > 0 ? MINIMUM_INTERVAL : interval);
+            locationClient.requestLocationUpdates(request, locationCallback,null);
+            started = true;
+        }
+
     }
 
     private int getPriority(String accuracy) {
@@ -84,44 +112,12 @@ public class PositionProvider implements LostApiClient.ConnectionCallbacks, Loca
         }
     }
 
-    @SuppressLint("MissingPermission")
-    @Override
-    public void onConnected() {
-        if (started) {
-            LocationRequest request = LocationRequest.create()
-                    .setPriority(getPriority(preferences.getString(MainFragment.KEY_ACCURACY, "medium")))
-                    .setInterval(distance > 0 || angle > 0 ? MINIMUM_INTERVAL : interval);
-            LocationServices.FusedLocationApi.requestLocationUpdates(apiClient, request, this);
-        } else {
-            apiClient.disconnect();
-        }
-    }
-
-    @Override
-    public void onLocationChanged(Location location) {
-        if (location != null && (lastLocation == null
-                || location.getTime() - lastLocation.getTime() >= interval
-                || distance > 0 && DistanceCalculator.distance(location.getLatitude(), location.getLongitude(), lastLocation.getLatitude(), lastLocation.getLongitude()) >= distance
-                || angle > 0 && Math.abs(location.getBearing() - lastLocation.getBearing()) >= angle)) {
-            Log.i(TAG, "location new");
-            lastLocation = location;
-            listener.onPositionUpdate(new Position(deviceId, location, getBatteryLevel(context)));
-        } else {
-            Log.i(TAG, location != null ? "location ignored" : "location nil");
-        }
-    }
-
-    @Override
-    public void onConnectionSuspended() {
-        Log.i(TAG, "lost client suspended");
-    }
 
     public void stopUpdates() {
-        if (apiClient.isConnected()) {
-            LocationServices.FusedLocationApi.removeLocationUpdates(apiClient, this);
-            apiClient.disconnect();
+        if (started) {
+            locationClient.removeLocationUpdates(locationCallback);
+            started = false;
         }
-        started = false;
     }
 
     public static double getBatteryLevel(Context context) {
