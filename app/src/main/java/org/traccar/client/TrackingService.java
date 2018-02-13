@@ -38,38 +38,16 @@ public class TrackingService extends Service {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, MainApplication.PRIMARY_CHANNEL)
                 .setSmallIcon(R.drawable.ic_stat_notify)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setCategory(Notification.CATEGORY_SERVICE);
-        Intent intent;
-        if (!BuildConfig.HIDDEN_APP) {
-            intent = new Intent(context, MainActivity.class);
-            builder
-                .setContentTitle(context.getString(R.string.settings_status_on_summary))
-                .setTicker(context.getString(R.string.settings_status_on_summary))
-                .setColor(ContextCompat.getColor(context, R.color.primary_dark));
+                .setCategory(Notification.CATEGORY_SERVICE)
+                .setColor(ContextCompat.getColor(context, R.color.primary_dark))
+                .setContentIntent(PendingIntent.getActivity(context, 0, new Intent(context, MainActivity.class), 0));
+        if (Build.VERSION.SDK_INT >= 24) {
+            builder.setContentTitle(context.getString(R.string.settings_status_on_summary));
         } else {
-            intent = new Intent(android.provider.Settings.ACTION_SETTINGS);
+            builder.setContentTitle(context.getString(R.string.app_name))
+                   .setContentText(context.getString(R.string.settings_status_on_summary));
         }
-        builder.setContentIntent(PendingIntent.getActivity(context, 0, intent, 0));
         return builder.build();
-    }
-
-    public static class HideNotificationService extends Service {
-        @Override
-        public IBinder onBind(Intent intent) {
-            return null;
-        }
-
-        @Override
-        public void onCreate() {
-            startForeground(NOTIFICATION_ID, createNotification(this));
-            stopForeground(true);
-        }
-
-        @Override
-        public int onStartCommand(Intent intent, int flags, int startId) {
-            stopSelfResult(startId);
-            return START_NOT_STICKY;
-        }
     }
 
     @Override
@@ -81,7 +59,6 @@ public class TrackingService extends Service {
         trackingController.start();
 
         startForeground(NOTIFICATION_ID, createNotification(this));
-        ContextCompat.startForegroundService(this, new Intent(this, HideNotificationService.class));
     }
 
     @Override

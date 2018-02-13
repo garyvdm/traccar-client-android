@@ -49,8 +49,6 @@
 
         <service android:name=".TrackingService" />
 
-        <service android:name=".TrackingService$HideNotificationService" />
-
         <receiver android:name=".AutostartReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
