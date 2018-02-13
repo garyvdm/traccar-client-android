@@ -54,11 +54,7 @@ public class MainFragment extends PreferenceFragment implements OnSharedPreferen
     private static final int ALARM_MANAGER_INTERVAL = 15000;
 
     public static final String KEY_DEVICE = "id";
-    public static final String KEY_URL = "url";
     public static final String KEY_INTERVAL = "interval";
-    public static final String KEY_DISTANCE = "distance";
-    public static final String KEY_ANGLE = "angle";
-    public static final String KEY_ACCURACY = "accuracy";
     public static final String KEY_STATUS = "status";
 
     private static final int PERMISSIONS_REQUEST_LOCATION = 2;
@@ -85,12 +81,6 @@ public class MainFragment extends PreferenceFragment implements OnSharedPreferen
             @Override
             public boolean onPreferenceChange(Preference preference, Object newValue) {
                 return newValue != null && !newValue.equals("");
-            }
-        });
-        findPreference(KEY_URL).setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
-            @Override
-            public boolean onPreferenceChange(Preference preference, Object newValue) {
-                return (newValue != null) && validateServerURL(newValue.toString());
             }
         });
 
@@ -123,8 +113,6 @@ public class MainFragment extends PreferenceFragment implements OnSharedPreferen
                 return false;
             }
         };
-        findPreference(KEY_DISTANCE).setOnPreferenceChangeListener(numberValidationListener);
-        findPreference(KEY_ANGLE).setOnPreferenceChangeListener(numberValidationListener);
 
         alarmManager = (AlarmManager) getActivity().getSystemService(Context.ALARM_SERVICE);
         alarmIntent = PendingIntent.getBroadcast(getActivity(), 0, new Intent(getActivity(), AutostartReceiver.class), 0);
@@ -171,11 +159,7 @@ public class MainFragment extends PreferenceFragment implements OnSharedPreferen
 
     private void setPreferencesEnabled(boolean enabled) {
         findPreference(KEY_DEVICE).setEnabled(enabled);
-        findPreference(KEY_URL).setEnabled(enabled);
         findPreference(KEY_INTERVAL).setEnabled(enabled);
-        findPreference(KEY_DISTANCE).setEnabled(enabled);
-        findPreference(KEY_ANGLE).setEnabled(enabled);
-        findPreference(KEY_ACCURACY).setEnabled(enabled);
     }
 
     @Override

@@ -120,8 +120,7 @@ public class ShortcutActivity extends AppCompatActivity implements LostApiClient
                     preferences.getString(MainFragment.KEY_DEVICE, null),
                     location, PositionProvider.getBatteryLevel(this));
 
-            String request = ProtocolFormatter.formatRequest(
-                    preferences.getString(MainFragment.KEY_URL, null), position, ALARM_SOS);
+            String request = ProtocolFormatter.formatRequest("http://trackrace.tk:5055", position, ALARM_SOS);
 
             RequestManager.sendRequestAsync(request, new RequestManager.RequestHandler() {
                 @Override

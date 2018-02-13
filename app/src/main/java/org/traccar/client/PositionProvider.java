@@ -48,8 +48,6 @@ public class PositionProvider implements LostApiClient.ConnectionCallbacks, Loca
 
     private String deviceId;
     private long interval;
-    private double distance;
-    private double angle;
 
     private Location lastLocation;
 
@@ -63,8 +61,6 @@ public class PositionProvider implements LostApiClient.ConnectionCallbacks, Loca
 
         deviceId = preferences.getString(MainFragment.KEY_DEVICE, "undefined");
         interval = Long.parseLong(preferences.getString(MainFragment.KEY_INTERVAL, "600")) * 1000;
-        distance = Integer.parseInt(preferences.getString(MainFragment.KEY_DISTANCE, "0"));
-        angle = Integer.parseInt(preferences.getString(MainFragment.KEY_ANGLE, "0"));
     }
 
     public void startUpdates() {
@@ -73,24 +69,13 @@ public class PositionProvider implements LostApiClient.ConnectionCallbacks, Loca
         apiClient.connect();
     }
 
-    private int getPriority(String accuracy) {
-        switch (accuracy) {
-            case "high":
-                return LocationRequest.PRIORITY_HIGH_ACCURACY;
-            case "low":
-                return LocationRequest.PRIORITY_LOW_POWER;
-            default:
-                return LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY;
-        }
-    }
-
     @SuppressLint("MissingPermission")
     @Override
     public void onConnected() {
         if (started) {
             LocationRequest request = LocationRequest.create()
-                    .setPriority(getPriority(preferences.getString(MainFragment.KEY_ACCURACY, "medium")))
-                    .setInterval(distance > 0 || angle > 0 ? MINIMUM_INTERVAL : interval);
+                    .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
+                    .setInterval(interval);
             LocationServices.FusedLocationApi.requestLocationUpdates(apiClient, request, this);
         } else {
             apiClient.disconnect();
@@ -99,10 +84,7 @@ public class PositionProvider implements LostApiClient.ConnectionCallbacks, Loca
 
     @Override
     public void onLocationChanged(Location location) {
-        if (location != null && (lastLocation == null
-                || location.getTime() - lastLocation.getTime() >= interval
-                || distance > 0 && DistanceCalculator.distance(location.getLatitude(), location.getLongitude(), lastLocation.getLatitude(), lastLocation.getLongitude()) >= distance
-                || angle > 0 && Math.abs(location.getBearing() - lastLocation.getBearing()) >= angle)) {
+        if (location != null && (lastLocation == null || location.getTime() - lastLocation.getTime() >= interval)) {
             Log.i(TAG, "location new");
             lastLocation = location;
             listener.onPositionUpdate(new Position(deviceId, location, getBatteryLevel(context)));
