@@ -21,20 +21,16 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.BatteryManager;
+import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Log;
 
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationResult;
-import com.google.android.gms.location.LocationCallback;
+public class PositionProvider implements LocationListener {
 
-
-public class PositionProvider {
-
-    private static final String TAG = PositionProvider.class.getSimpleName();
+    protected static final String TAG = PositionProvider.class.getSimpleName();
 
     private static final int MINIMUM_INTERVAL = 1000;
 
@@ -45,60 +41,37 @@ public class PositionProvider {
     private final PositionListener listener;
 
     private final Context context;
-    private SharedPreferences preferences;
-    private FusedLocationProviderClient locationClient;
-    private LocationCallback locationCallback;
-
+    protected final LocationManager locationManager;
 
     private String deviceId;
-    private long interval;
+    protected String type;
+    protected long interval;
+
 
     private Location lastLocation;
 
-    private boolean started;
-
-    public PositionProvider(final Context context, final PositionListener listener) {
+    public PositionProvider(Context context, PositionListener listener) {
         this.context = context;
         this.listener = listener;
 
-        preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+        locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
 
         deviceId = preferences.getString(MainFragment.KEY_DEVICE, "undefined");
         interval = Long.parseLong(preferences.getString(MainFragment.KEY_INTERVAL, "600")) * 1000;
-        locationClient = LocationServices.getFusedLocationProviderClient(context);
-
-        locationCallback = new LocationCallback() {
-            @Override
-            public void onLocationResult(LocationResult locationResult) {
-                Location location = locationResult.getLastLocation();
-                if (location != null && (lastLocation == null || location.getTime() - lastLocation.getTime() >= interval)) {
-                    Log.i(TAG, "location new");
-                    lastLocation = location;
-                    listener.onPositionUpdate(new Position(deviceId, location, getBatteryLevel(context)));
-                } else {
-                    Log.i(TAG, location != null ? "location ignored" : "location nil");
-                }
-            };
-        };
     }
 
     @SuppressLint("MissingPermission")
     public void startUpdates() {
-        if (!started) {
-            LocationRequest request = LocationRequest.create()
-                    .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
-                    .setInterval(interval);
-            locationClient.requestLocationUpdates(request, locationCallback,null);
-            started = true;
+        try {
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, interval, 0, this);
+        } catch (IllegalArgumentException e) {
+            Log.w(TAG, e);
         }
-
     }
 
     public void stopUpdates() {
-        if (started) {
-            locationClient.removeLocationUpdates(locationCallback);
-            started = false;
-        }
+        locationManager.removeUpdates(this);
     }
 
     public static double getBatteryLevel(Context context) {
@@ -109,6 +82,25 @@ public class PositionProvider {
             return (level * 100.0) / scale;
         }
         return 0;
+    }
+
+    public void onLocationChanged(Location location) {
+        if (location != null && (lastLocation == null || location.getTime() - lastLocation.getTime() >= interval)) {
+            Log.i(TAG, "location new");
+            lastLocation = location;
+            listener.onPositionUpdate(new Position(deviceId, location, getBatteryLevel(context)));
+        } else {
+            Log.i(TAG, location != null ? "location ignored" : "location nil");
+        }
+    }
+
+    public void onStatusChanged(String provider, int status, Bundle extras) {
+    }
+
+    public void onProviderEnabled(String provider) {
+    }
+
+    public void onProviderDisabled(String provider) {
     }
 
 }

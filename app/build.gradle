@@ -30,8 +30,6 @@ android {
 
 dependencies {
     compile 'com.android.support:design:27.0.2'
-    compile 'com.mapzen.android:lost:3.0.4'
-    implementation "com.google.android.gms:play-services-location:11.8.0"
     testCompile 'junit:junit:4.12'
     testCompile 'org.robolectric:robolectric:3.6.1'
     googleCompile 'com.google.firebase:firebase-core:11.8.0'
